@@ -6,8 +6,8 @@ public sealed class VRCLocalDateOverlayWindow : EditorWindow
 {
     private static readonly string[] SupportedShaders =
     {
-        "Custom/VRC/LocalDateOverlay",
-        "Custom/VRC/LocalDateDisplay",
+        "JustTimeShader",
+        "JustTimeShader_liltoon",
     };
 
     private static readonly int DateEnableId    = Shader.PropertyToID("_DateEnable");
@@ -304,7 +304,7 @@ public sealed class VRCLocalDateOverlayWindow : EditorWindow
             if (_material == null)
             {
                 EditorGUILayout.HelpBox(
-                    "Select a material that uses Custom/VRC/LocalDateOverlay or Custom/VRC/LocalDateDisplay.",
+                    "Select a material that uses JustTimeShader or JustTimeShader_liltoon.",
                     MessageType.Info);
                 EditorGUILayout.EndScrollView();
                 return;

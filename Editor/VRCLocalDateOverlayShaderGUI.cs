@@ -2,7 +2,7 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// Custom material inspector for Custom/VRC/LocalDateOverlay.
+/// Custom material inspector for JustTimeShader.
 /// Registered via  CustomEditor "VRCLocalDateOverlayShaderGUI"  in the shader.
 /// </summary>
 public sealed class VRCLocalDateOverlayShaderGUI : ShaderGUI
@@ -192,7 +192,7 @@ public sealed class VRCLocalDateOverlayShaderGUI : ShaderGUI
             {
                 normal = { textColor = new Color(0.5f, 0.5f, 0.5f) }
             };
-            GUILayout.Label("Custom/VRC/LocalDateOverlay", footerStyle);
+            GUILayout.Label("JustTimeShader", footerStyle);
             GUILayout.FlexibleSpace();
         }
 

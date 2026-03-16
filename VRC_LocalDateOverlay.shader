@@ -1,4 +1,4 @@
-Shader "Custom/VRC/LocalDateOverlay"
+Shader "JustTimeShader"
 {
     Properties
     {
