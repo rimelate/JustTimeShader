@@ -4,6 +4,8 @@ using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
+namespace Rimerime.JustTimeShader.Editor
+{
 public class VRCLocalDateOverlayLiltoonGUI : ShaderGUI
 {
     private ShaderGUI _lilInspector;
@@ -663,4 +665,5 @@ public class VRCLocalDateOverlayLiltoonGUI : ShaderGUI
 
         return value;
     }
+}
 }

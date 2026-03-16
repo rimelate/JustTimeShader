@@ -26,7 +26,7 @@ Shader "JustTimeShader"
         [HideInInspector] _EditorDate ("", Float) = 1773446400
     }
 
-    CustomEditor "VRCLocalDateOverlayShaderGUI"
+    CustomEditor "Rimerime.JustTimeShader.Editor.VRCLocalDateOverlayShaderGUI"
 
     SubShader
     {

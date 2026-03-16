@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
+namespace Rimerime.JustTimeShader.Editor
+{
 public sealed class VRCLocalDateOverlayWindow : EditorWindow
 {
     private static readonly string[] SupportedShaders =
@@ -879,4 +881,5 @@ public sealed class VRCLocalDateOverlayWindow : EditorWindow
                 EditorGUI.DrawRect(cell, c);
             }
     }
+}
 }

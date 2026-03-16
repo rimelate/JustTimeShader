@@ -1,6 +1,8 @@
 using UnityEditor;
 using UnityEngine;
 
+namespace Rimerime.JustTimeShader.Editor
+{
 /// <summary>
 /// Custom material inspector for JustTimeShader.
 /// Registered via  CustomEditor "VRCLocalDateOverlayShaderGUI"  in the shader.
@@ -339,4 +341,5 @@ public sealed class VRCLocalDateOverlayShaderGUI : ShaderGUI
         if (EditorGUI.EndChangeCheck())
             prop.vectorValue = new Vector4(v2.x, v2.y, v.z, v.w);
     }
+}
 }

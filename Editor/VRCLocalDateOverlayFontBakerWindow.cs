@@ -4,6 +4,8 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
+namespace Rimerime.JustTimeShader.Editor
+{
 public sealed class VRCLocalDateOverlayFontBakerWindow : EditorWindow
 {
     private static readonly string[] AtlasEntries =
@@ -264,4 +266,5 @@ public sealed class VRCLocalDateOverlayFontBakerWindow : EditorWindow
             value = value.Replace(c, '_');
         return value.Replace(' ', '_');
     }
+}
 }
