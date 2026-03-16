@@ -51,7 +51,7 @@ public class VRCLocalDateOverlayLiltoonGUI : ShaderGUI
         DrawDateSection(editor, props, mat);
         DrawSeparator();
 
-        var customShader = Shader.Find("Custom/VRC/LocalDateDisplay");
+        var desiredShader = mat.shader;
         EditorGUILayout.HelpBox(
             L(
                 "Overlay rendering mode is fixed for this shader. Do not change it in the lilToon section below; it will be auto-restored.",
@@ -81,15 +81,15 @@ public class VRCLocalDateOverlayLiltoonGUI : ShaderGUI
             DrawFallbackInspector(editor, props);
         }
 
-        if (customShader != null)
+        if (desiredShader != null)
         {
             foreach (var target in editor.targets)
             {
                 var material = target as Material;
-                if (material == null || material.shader == customShader) continue;
+                if (material == null || material.shader == desiredShader) continue;
 
                 Undo.RecordObject(material, "Restore Date Overlay Shader");
-                material.shader = customShader;
+                material.shader = desiredShader;
                 EditorUtility.SetDirty(material);
             }
         }
@@ -97,7 +97,7 @@ public class VRCLocalDateOverlayLiltoonGUI : ShaderGUI
         SyncEditorDate(mat);
         if (EditorGUI.EndChangeCheck())
         {
-            SaveMaterialIfPersistent(mat);
+            MarkTargetsDirty(editor.targets);
         }
     }
 
@@ -573,14 +573,15 @@ public class VRCLocalDateOverlayLiltoonGUI : ShaderGUI
         }
     }
 
-    private static void SaveMaterialIfPersistent(Material mat)
+    private static void MarkTargetsDirty(UnityEngine.Object[] targets)
     {
-        if (mat == null) return;
-
-        EditorUtility.SetDirty(mat);
-        if (EditorUtility.IsPersistent(mat))
+        if (targets == null) return;
+        foreach (var target in targets)
         {
-            AssetDatabase.SaveAssetIfDirty(mat);
+            if (target != null)
+            {
+                EditorUtility.SetDirty(target);
+            }
         }
     }
 
