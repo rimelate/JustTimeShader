@@ -1,0 +1,69 @@
+name: Build and Deploy VPM Repo
+
+on:
+  release:
+    types: [published] # Release公開時に実行
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy-vpm:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+
+      - name: VPM用 index.json の生成
+        run: |
+          python3 -c "
+          import json, os
+          repo = os.environ['GITHUB_REPOSITORY']
+          owner, repo_name = repo.split('/')
+          tag = os.environ['GITHUB_REF_NAME']
+          
+          pages_url = f'https://{owner}.github.io/{repo_name}/index.json'
+          zip_url = f'https://github.com/{repo}/releases/download/{tag}/JustTimeShader-{tag}.zip'
+
+          with open('package.json', 'r', encoding='utf-8') as f:
+              pkg = json.load(f)
+
+          # VCCからダウンロードできるようにZipのURLを追加
+          pkg['url'] = zip_url
+
+          # VPMリポジトリのフォーマットを構築
+          vpm_repo = {
+              'name': f'{owner} VPM Repository',
+              'id': f'com.{owner}.vpm',
+              'url': pages_url,
+              'author': owner,
+              'packages': {
+                  pkg['name']: {
+                      'versions': {
+                          pkg['version']: pkg
+                      }
+                  }
+              }
+          }
+
+          os.makedirs('public', exist_ok=True)
+          with open('public/index.json', 'w', encoding='utf-8') as f:
+              json.dump(vpm_repo, f, indent=2, ensure_ascii=False)
+          "
+
+      - name: GitHub Pagesの設定
+        uses: actions/configure-pages@v5
+
+      - name: Pagesへのアップロード準備
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './public'
+
+      - name: GitHub Pagesへデプロイ
+        id: deployment
+        uses: actions/deploy-pages@v4

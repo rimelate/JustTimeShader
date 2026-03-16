@@ -1,0 +1,26 @@
+name: Upload UnityPackage to Release
+
+on:
+  release:
+    types: [published] # GitHubでReleaseを公開した時に作動
+
+jobs:
+  upload-unitypackage:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Releaseにファイルをアップロードする権限
+
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+
+      - name: .unitypackageをReleaseへアップロード
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # リポジトリの直下にある .unitypackage ファイルを探してアップロード
+          for file in *.unitypackage; do
+            if [ -f "$file" ]; then
+              gh release upload ${{ github.event.release.tag_name }} "$file"
+            fi
+          done
