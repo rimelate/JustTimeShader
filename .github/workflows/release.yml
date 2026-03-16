@@ -1,11 +1,11 @@
-name: Upload UnityPackage to Release
+name: Upload Release Assets
 
 on:
   release:
     types: [published] # GitHubでReleaseを公開した時に作動
 
 jobs:
-  upload-unitypackage:
+  upload-release-assets:
     runs-on: ubuntu-latest
     permissions:
       contents: write # Releaseにファイルをアップロードする権限
@@ -14,13 +14,65 @@ jobs:
       - name: リポジトリのチェックアウト
         uses: actions/checkout@v4
 
-      - name: .unitypackageをReleaseへアップロード
+      - name: VPM用 zip を作成
+        shell: bash
+        run: |
+          python3 <<'PY'
+          import json
+          import os
+          import pathlib
+          import zipfile
+
+          root = pathlib.Path('.')
+          with open(root / 'package.json', 'r', encoding='utf-8') as f:
+              pkg = json.load(f)
+
+          tag = os.environ.get('GITHUB_REF_NAME') or os.environ['GITHUB_EVENT_RELEASE_TAG_NAME']
+          asset_name = f"{pkg['name'].replace('.', '-')}-{tag}.zip"
+
+          include_names = [
+              'package.json', 'README.md', 'README.ja.md', 'README~.md',
+              'CHANGELOG.md', 'LICENSE', 'LICENSE.md', 'ThirdPartyNotices.md'
+          ]
+          include_dirs = ['Editor', 'Runtime', 'Samples~', 'Documentation~']
+
+          files_to_add = []
+          for name in include_names:
+              path = root / name
+              if path.is_file():
+                  files_to_add.append(path)
+
+          for dirname in include_dirs:
+              path = root / dirname
+              if path.exists():
+                  for p in path.rglob('*'):
+                      if p.is_file():
+                          files_to_add.append(p)
+
+          if not files_to_add:
+              raise SystemExit('Zip に含める VPM パッケージファイルが見つかりませんでした。package.json や Runtime などを確認してください。')
+
+          with zipfile.ZipFile(asset_name, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+              for path in files_to_add:
+                  zf.write(path, path.as_posix())
+
+          print(f'Created: {asset_name}')
+          PY
+
+      - name: Releaseへアセットをアップロード
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
-          # リポジトリの直下にある .unitypackage ファイルを探してアップロード
-          for file in *.unitypackage; do
-            if [ -f "$file" ]; then
-              gh release upload ${{ github.event.release.tag_name }} "$file"
-            fi
+          shopt -s nullglob
+          assets=( *.unitypackage *.zip )
+
+          if [ ${#assets[@]} -eq 0 ]; then
+            echo "アップロード対象のアセットが見つかりませんでした。"
+            exit 1
+          fi
+
+          for file in "${assets[@]}"; do
+            echo "Uploading $file"
+            gh release upload "${{ github.event.release.tag_name }}" "$file" --clobber
           done

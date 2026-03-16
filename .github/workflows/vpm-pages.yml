@@ -20,41 +20,54 @@ jobs:
         uses: actions/checkout@v4
 
       - name: VPM用 index.json の生成
+        shell: bash
         run: |
-          python3 -c "
-          import json, os
+          python3 <<'PY'
+          import json
+          import os
+          import urllib.request
+          import urllib.error
+
           repo = os.environ['GITHUB_REPOSITORY']
           owner, repo_name = repo.split('/')
-          tag = os.environ['GITHUB_REF_NAME']
-          
+          tag = os.environ.get('GITHUB_REF_NAME') or os.environ['GITHUB_EVENT_RELEASE_TAG_NAME']
+
           pages_url = f'https://{owner}.github.io/{repo_name}/index.json'
-          zip_url = f'https://github.com/{repo}/releases/download/{tag}/JustTimeShader-{tag}.zip'
 
           with open('package.json', 'r', encoding='utf-8') as f:
               pkg = json.load(f)
 
-          # VCCからダウンロードできるようにZipのURLを追加
+          asset_name = f"{pkg['name'].replace('.', '-')}-{tag}.zip"
+          zip_url = f'https://github.com/{repo}/releases/download/{tag}/{asset_name}'
+
           pkg['url'] = zip_url
 
-          # VPMリポジトリのフォーマットを構築
-          vpm_repo = {
-              'name': f'{owner} VPM Repository',
-              'id': f'com.{owner}.vpm',
-              'url': pages_url,
-              'author': owner,
-              'packages': {
-                  pkg['name']: {
-                      'versions': {
-                          pkg['version']: pkg
-                      }
-                  }
+          try:
+              with urllib.request.urlopen(pages_url) as resp:
+                  existing_repo = json.load(resp)
+          except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError):
+              existing_repo = {
+                  'name': f'{owner} VPM Repository',
+                  'id': f'com.{owner}.vpm',
+                  'url': pages_url,
+                  'author': owner,
+                  'packages': {}
               }
-          }
+
+          existing_repo.setdefault('name', f'{owner} VPM Repository')
+          existing_repo.setdefault('id', f'com.{owner}.vpm')
+          existing_repo.setdefault('url', pages_url)
+          existing_repo.setdefault('author', owner)
+          existing_repo.setdefault('packages', {})
+
+          package_entry = existing_repo['packages'].setdefault(pkg['name'], {'versions': {}})
+          package_entry.setdefault('versions', {})
+          package_entry['versions'][pkg['version']] = pkg
 
           os.makedirs('public', exist_ok=True)
           with open('public/index.json', 'w', encoding='utf-8') as f:
-              json.dump(vpm_repo, f, indent=2, ensure_ascii=False)
-          "
+              json.dump(existing_repo, f, indent=2, ensure_ascii=False)
+          PY
 
       - name: GitHub Pagesの設定
         uses: actions/configure-pages@v5
