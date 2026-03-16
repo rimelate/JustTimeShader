@@ -2,11 +2,9 @@
 
 VRChat内でプレイヤーのローカルタイム（現在時刻や日付）を表示するためのシェーダーです。標準シェーダーに加え、lilToon対応版を同梱しています。
 
-## インストール (VCC)
+## インストール
 
- **[Add VPM Repository to VCC](vcc://vpm/addRepo?url=https://rimelate.github.io/JustTimeShader/index.json)**
-
-もし上のリンクが動作しない場合は、以下のURLをVCCに手動追加してください。
+以下のURLをVCCに手動追加するか**[Releases](https://github.com/rimelate/JustTimeShader/releases)**
 https://rimelate.github.io/JustTimeShader/index.json
 
 ## 特徴
