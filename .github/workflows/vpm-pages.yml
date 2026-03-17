@@ -65,8 +65,13 @@ jobs:
           package_entry['versions'][pkg['version']] = pkg
 
           os.makedirs('public', exist_ok=True)
+          
           with open('public/index.json', 'w', encoding='utf-8') as f:
               json.dump(existing_repo, f, indent=2, ensure_ascii=False)
+
+          import shutil
+          if os.path.exists('index.html'):
+              shutil.copy('index.html', 'public/index.html')
           PY
 
       - name: GitHub Pagesの設定
