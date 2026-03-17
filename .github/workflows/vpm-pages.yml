@@ -1,17 +1,23 @@
 name: Build and Deploy VPM Repo
 
 on:
-  release:
-    types: [published]
+  workflow_run:
+    workflows: ["Upload Release Assets"]
+    types: [completed]
 
 permissions:
   contents: read
   pages: write
   id-token: write
 
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
 jobs:
   deploy-vpm:
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -19,8 +25,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Generate VPM repository files
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           python3 <<'PY'
@@ -32,7 +42,20 @@ jobs:
 
           repo = os.environ['GITHUB_REPOSITORY']
           owner, repo_name = repo.split('/')
-          tag = os.environ.get('GITHUB_REF_NAME') or os.environ['GITHUB_EVENT_RELEASE_TAG_NAME']
+          token = os.environ.get('GITHUB_TOKEN', '')
+
+          def github_api(url):
+              req = urllib.request.Request(url)
+              if token:
+                  req.add_header('Authorization', f'Bearer {token}')
+              req.add_header('Accept', 'application/vnd.github+json')
+              req.add_header('X-GitHub-Api-Version', '2022-11-28')
+              with urllib.request.urlopen(req) as resp:
+                  return json.load(resp)
+
+          # release.yml 完了後に実行されるため、latest release が対象のリリース
+          release_data = github_api(f'https://api.github.com/repos/{repo}/releases/latest')
+          tag = release_data['tag_name']
 
           pages_url = f'https://{owner}.github.io/{repo_name}/index.json'
 
