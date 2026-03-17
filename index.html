@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>VCCリポジトリの追加</title>
+    <script>
+        // ページ読み込み時に実行
+        window.onload = function() {
+            const vccUrl = "vcc://vpm/addRepo?url=https://rimelate.github.io/justtimeshader/index.json";
+            
+            // VCCを呼び出す
+            window.location.href = vccUrl;
+
+            // ユーザーがブラウザに戻ってきた時のために、手動用リンクも表示しておく
+            setTimeout(() => {
+                document.getElementById('status').innerText = "VCCが起動しない場合は、下のボタンを押してください。";
+                document.getElementById('manual-link').style.display = "block";
+            }, 2000);
+        };
+    </script>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding-top: 50px; background-color: #f0f4f8; }
+        .btn { display: none; margin-top: 20px; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>VCCへリポジトリを追加しています...</h1>
+    <p id="status">ブラウザのポップアップが表示されたら「開く」を押してください。</p>
+    
+    <a id="manual-link" class="btn" href="vcc://vpm/addRepo?url=https://rimelate.github.io/justtimeshader/index.json">
+        手動でVCCに追加する
+    </a>
+</body>
+</html>
