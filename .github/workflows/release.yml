@@ -2,64 +2,135 @@ name: Upload Release Assets
 
 on:
   release:
-    types: [published] # GitHubでReleaseを公開した時に作動
+    types: [published]
 
 jobs:
   upload-release-assets:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Releaseにファイルをアップロードする権限
+      contents: write
 
     steps:
-      - name: リポジトリのチェックアウト
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: VPM用 zip を作成
+      - name: Build VPM zip and unitypackage
         shell: bash
         run: |
           python3 <<'PY'
+          import hashlib
           import json
           import os
           import pathlib
+          import tarfile
+          import tempfile
           import zipfile
 
-          root = pathlib.Path('.')
+          root = pathlib.Path('.').resolve()
           with open(root / 'package.json', 'r', encoding='utf-8') as f:
               pkg = json.load(f)
 
           tag = os.environ.get('GITHUB_REF_NAME') or os.environ['GITHUB_EVENT_RELEASE_TAG_NAME']
-          asset_name = f"{pkg['name'].replace('.', '-')}-{tag}.zip"
+          package_slug = pkg['name'].replace('.', '-')
+          zip_name = f'{package_slug}-{tag}.zip'
+          unitypackage_name = f'{package_slug}-{tag}.unitypackage'
 
-          include_names = [
+          vpm_include_files = [
               'package.json', 'README.md', 'README.ja.md', 'README~.md',
               'CHANGELOG.md', 'LICENSE', 'LICENSE.md', 'ThirdPartyNotices.md'
           ]
-          include_dirs = ['Editor', 'Runtime', 'Samples~', 'Documentation~']
+          package_dirs = ['Editor', 'Generated', 'Runtime', 'Samples~', 'Documentation~']
 
-          files_to_add = []
-          for name in include_names:
+          vpm_files = []
+          for name in vpm_include_files:
               path = root / name
               if path.is_file():
-                  files_to_add.append(path)
+                  vpm_files.append(path)
 
-          for dirname in include_dirs:
+          for dirname in package_dirs:
               path = root / dirname
               if path.exists():
-                  for p in path.rglob('*'):
-                      if p.is_file():
-                          files_to_add.append(p)
+                  vpm_files.extend(p for p in path.rglob('*') if p.is_file())
 
-          if not files_to_add:
-              raise SystemExit('Zip に含める VPM パッケージファイルが見つかりませんでした。package.json や Runtime などを確認してください。')
+          if not vpm_files:
+              raise SystemExit('No files found for the VPM zip archive.')
 
-          with zipfile.ZipFile(asset_name, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
-              for path in files_to_add:
-                  zf.write(path, path.as_posix())
+          with zipfile.ZipFile(zip_name, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+              for path in sorted(set(vpm_files)):
+                  zf.write(path, path.relative_to(root).as_posix())
 
-          print(f'Created: {asset_name}')
+          unity_roots = ['Editor', 'Generated', 'Runtime']
+          root_meta_candidates = {path.name.lower(): path for path in root.glob('*.meta')}
+
+          def find_folder_meta(folder: pathlib.Path):
+              exact = folder.with_suffix(folder.suffix + '.meta')
+              if exact.exists():
+                  return exact
+              return root_meta_candidates.get(f'{folder.name.lower()}.meta')
+
+          unity_entries = []
+          for dirname in unity_roots:
+              folder = root / dirname
+              if not folder.exists():
+                  continue
+
+              folder_meta = find_folder_meta(folder)
+              unity_entries.append((folder, pathlib.PurePosixPath('Assets/JustTimeShader') / dirname, folder_meta))
+
+              for file_path in sorted(p for p in folder.rglob('*') if p.is_file() and p.suffix != '.meta'):
+                  meta_path = file_path.with_suffix(file_path.suffix + '.meta')
+                  if not meta_path.exists():
+                      raise SystemExit(f'Meta file not found for {file_path.relative_to(root).as_posix()}')
+                  rel_path = file_path.relative_to(folder).as_posix()
+                  target = pathlib.PurePosixPath('Assets/JustTimeShader') / dirname / rel_path
+                  unity_entries.append((file_path, target, meta_path))
+
+          if not unity_entries:
+              raise SystemExit('No files found for the unitypackage archive.')
+
+          with tempfile.TemporaryDirectory() as tmpdir:
+              temp_root = pathlib.Path(tmpdir)
+
+              for source_path, target_path, meta_path in unity_entries:
+                  entry_id = hashlib.md5(target_path.as_posix().encode('utf-8')).hexdigest()
+                  entry_dir = temp_root / entry_id
+                  entry_dir.mkdir(parents=True, exist_ok=True)
+
+                  (entry_dir / 'pathname').write_text(target_path.as_posix(), encoding='utf-8')
+
+                  if source_path.is_dir():
+                      (entry_dir / 'asset').write_bytes(b'')
+                  else:
+                      (entry_dir / 'asset').write_bytes(source_path.read_bytes())
+
+                  if meta_path and meta_path.exists():
+                      (entry_dir / 'asset.meta').write_bytes(meta_path.read_bytes())
+                  else:
+                      (entry_dir / 'asset.meta').write_text(
+                          '\n'.join([
+                              'fileFormatVersion: 2',
+                              f'guid: {entry_id[:32]}',
+                              'folderAsset: yes',
+                              'DefaultImporter:',
+                              '  externalObjects: {}',
+                              '  userData: ',
+                              '  assetBundleName: ',
+                              '  assetBundleVariant: ',
+                              ''
+                          ]),
+                          encoding='utf-8'
+                      )
+
+              with tarfile.open(unitypackage_name, 'w:gz') as tar:
+                  for path in sorted(temp_root.rglob('*')):
+                      if path.is_file():
+                          tar.add(path, arcname=path.relative_to(temp_root).as_posix())
+
+          print(f'Created: {zip_name}')
+          print(f'Created: {unitypackage_name}')
           PY
 
-      - name: Releaseへアセットをアップロード
+      - name: Upload assets to release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
@@ -68,7 +139,7 @@ jobs:
           assets=( *.unitypackage *.zip )
 
           if [ ${#assets[@]} -eq 0 ]; then
-            echo "アップロード対象のアセットが見つかりませんでした。"
+            echo "No release assets were generated."
             exit 1
           fi
 

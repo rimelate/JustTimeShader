@@ -2,7 +2,7 @@ name: Build and Deploy VPM Repo
 
 on:
   release:
-    types: [published] # Release公開時に実行
+    types: [published]
 
 permissions:
   contents: read
@@ -15,18 +15,20 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
-      - name: リポジトリのチェックアウト
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: VPM用 index.json の生成
+      - name: Generate VPM repository files
         shell: bash
         run: |
           python3 <<'PY'
           import json
           import os
-          import urllib.request
+          import shutil
           import urllib.error
+          import urllib.request
 
           repo = os.environ['GITHUB_REPOSITORY']
           owner, repo_name = repo.split('/')
@@ -38,15 +40,13 @@ jobs:
               pkg = json.load(f)
 
           asset_name = f"{pkg['name'].replace('.', '-')}-{tag}.zip"
-          zip_url = f'https://github.com/{repo}/releases/download/{tag}/{asset_name}'
-
-          pkg['url'] = zip_url
+          asset_url = f'https://github.com/{repo}/releases/download/{tag}/{asset_name}'
 
           try:
               with urllib.request.urlopen(pages_url) as resp:
-                  existing_repo = json.load(resp)
+                  repository = json.load(resp)
           except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError):
-              existing_repo = {
+              repository = {
                   'name': f'{owner} VPM Repository',
                   'id': f'com.{owner}.vpm',
                   'url': pages_url,
@@ -54,34 +54,34 @@ jobs:
                   'packages': {}
               }
 
-          existing_repo.setdefault('name', f'{owner} VPM Repository')
-          existing_repo.setdefault('id', f'com.{owner}.vpm')
-          existing_repo.setdefault('url', pages_url)
-          existing_repo.setdefault('author', owner)
-          existing_repo.setdefault('packages', {})
+          repository.setdefault('name', f'{owner} VPM Repository')
+          repository.setdefault('id', f'com.{owner}.vpm')
+          repository.setdefault('url', pages_url)
+          repository.setdefault('author', owner)
+          repository.setdefault('packages', {})
 
-          package_entry = existing_repo['packages'].setdefault(pkg['name'], {'versions': {}})
+          package_entry = repository['packages'].setdefault(pkg['name'], {'versions': {}})
           package_entry.setdefault('versions', {})
-          package_entry['versions'][pkg['version']] = pkg
+
+          release_pkg = dict(pkg)
+          release_pkg['url'] = asset_url
+          package_entry['versions'][pkg['version']] = release_pkg
 
           os.makedirs('public', exist_ok=True)
-          
           with open('public/index.json', 'w', encoding='utf-8') as f:
-              json.dump(existing_repo, f, indent=2, ensure_ascii=False)
+              json.dump(repository, f, indent=2, ensure_ascii=False)
 
-          import shutil
-          if os.path.exists('index.html'):
-              shutil.copy('index.html', 'public/index.html')
+          shutil.copy('index.html', 'public/index.html')
           PY
 
-      - name: GitHub Pagesの設定
+      - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Pagesへのアップロード準備
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './public'
+          path: ./public
 
-      - name: GitHub Pagesへデプロイ
+      - name: Deploy GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
