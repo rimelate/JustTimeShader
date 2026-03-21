@@ -46,6 +46,7 @@ public class VRCLocalDateOverlayLiltoonGUI : ShaderGUI
         }
 
         EnsureReflectionCache();
+        EnsureOverlaySettings(editor.targets);
 
         EditorGUIUtility.labelWidth = 160f;
         EditorGUI.BeginChangeCheck();
@@ -95,6 +96,8 @@ public class VRCLocalDateOverlayLiltoonGUI : ShaderGUI
                 EditorUtility.SetDirty(material);
             }
         }
+
+        EnsureOverlaySettings(editor.targets);
 
         SyncEditorDate(mat);
         if (EditorGUI.EndChangeCheck())
@@ -573,6 +576,31 @@ public class VRCLocalDateOverlayLiltoonGUI : ShaderGUI
         {
             mat.SetFloat("_EditorDate", nowSeconds);
         }
+    }
+
+    private static void EnsureOverlaySettings(UnityEngine.Object[] targets)
+    {
+        if (targets == null) return;
+        foreach (var target in targets)
+        {
+            var mat = target as Material;
+            if (mat == null) continue;
+
+            SetFloatIfPresent(mat, "_StencilRef", 1f);
+            SetFloatIfPresent(mat, "_StencilReadMask", 255f);
+            SetFloatIfPresent(mat, "_StencilWriteMask", 255f);
+            SetFloatIfPresent(mat, "_StencilComp", 3f);
+            SetFloatIfPresent(mat, "_StencilPass", 0f);
+            SetFloatIfPresent(mat, "_StencilFail", 0f);
+            SetFloatIfPresent(mat, "_StencilZFail", 0f);
+        }
+    }
+
+    private static void SetFloatIfPresent(Material mat, string propertyName, float value)
+    {
+        if (!mat.HasProperty(propertyName)) return;
+        if (Mathf.Approximately(mat.GetFloat(propertyName), value)) return;
+        mat.SetFloat(propertyName, value);
     }
 
     private static void MarkTargetsDirty(UnityEngine.Object[] targets)

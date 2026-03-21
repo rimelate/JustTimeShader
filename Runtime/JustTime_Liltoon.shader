@@ -697,23 +697,31 @@ Shader "JustTimeShader_liltoon"
         // Only the glyph area is drawn; the rest of the material stays transparent.
         Pass
         {
-            Name "DATE_OVERLAY"
+            Name "DATE_MASK"
             Tags { "LightMode" = "Always" }
-            Blend SrcAlpha OneMinusSrcAlpha
+            Blend Off
+            ColorMask 0
             ZWrite Off
             ZTest LEqual
             Cull Off
+            Stencil
+            {
+                Ref [_StencilRef]
+                ReadMask [_StencilReadMask]
+                WriteMask [_StencilWriteMask]
+                Comp Always
+                Pass Replace
+                Fail Keep
+                ZFail Keep
+            }
 
 
             HLSLPROGRAM
             #pragma vertex vert
-            #pragma fragment fragRender
+            #pragma fragment fragMask
             #include "UnityCG.cginc"
             #include "Packages/com.vrchat.base/ShaderLibrary/VRCTime.cginc"
 
-            float4 _Color;
-            sampler2D _MainTex;
-            float4 _MainTex_ST;
             float  _DateEnable;
             float4 _DateTex_ST;
             int    _DateFormat;
@@ -951,20 +959,20 @@ Shader "JustTimeShader_liltoon"
                 else                    return 0.0;
             }
 
-            float4 fragRender(v2f i) : SV_Target
+            float4 fragMask(v2f i) : SV_Target
             {
                 if (_DateEnable < 0.5) discard;
 
                 float alpha = GetDateOverlayAlpha(i.uv);
                 if (alpha <= 0.0) discard;
 
-                float2 localUV = saturate(i.uv * _DateTex_ST.xy + _DateTex_ST.zw);
-                float2 mainUV = localUV * _MainTex_ST.xy + _MainTex_ST.zw;
-                float4 mainCol = tex2D(_MainTex, mainUV) * _Color;
-                return float4(mainCol.rgb, mainCol.a * alpha);
+                return 0.0;
             }
             ENDHLSL
         }
+
+        UsePass "Hidden/ltspass_transparent/FORWARD"
+        UsePass "Hidden/ltspass_transparent/FORWARD_ADD"
 
 
     }
