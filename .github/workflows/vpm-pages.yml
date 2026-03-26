@@ -54,6 +54,7 @@ jobs:
               with urllib.request.urlopen(req) as resp:
                   return json.load(resp)
 
+          # release.yml 完了後に実行されるため、latest release が対象のリリース
           release_data = github_api(f'https://api.github.com/repos/{repo}/releases/latest')
           tag = release_data['tag_name']
 
@@ -107,79 +108,6 @@ jobs:
 
           if os.path.isfile('index.html'):
               shutil.copy('index.html', 'public/index.html')
-          PY
-
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./public
-
-      - name: Deploy GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4          import json
-          import os
-          import shutil
-          import urllib.error
-          import urllib.request
-
-          repo = os.environ['GITHUB_REPOSITORY']
-          owner, repo_name = repo.split('/')
-          token = os.environ.get('GITHUB_TOKEN', '')
-
-          def github_api(url):
-              req = urllib.request.Request(url)
-              if token:
-                  req.add_header('Authorization', f'Bearer {token}')
-              req.add_header('Accept', 'application/vnd.github+json')
-              req.add_header('X-GitHub-Api-Version', '2022-11-28')
-              with urllib.request.urlopen(req) as resp:
-                  return json.load(resp)
-
-          # release.yml 完了後に実行されるため、latest release が対象のリリース
-          release_data = github_api(f'https://api.github.com/repos/{repo}/releases/latest')
-          tag = release_data['tag_name']
-
-          pages_url = f'https://{owner}.github.io/{repo_name}/index.json'
-
-          with open('package.json', 'r', encoding='utf-8') as f:
-              pkg = json.load(f)
-
-          asset_name = f"{pkg['name'].replace('.', '-')}-{tag}.zip"
-          asset_url = f'https://github.com/{repo}/releases/download/{tag}/{asset_name}'
-
-          try:
-              with urllib.request.urlopen(pages_url) as resp:
-                  repository = json.load(resp)
-          except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError):
-              repository = {
-                  'name': f'{owner} VPM Repository',
-                  'id': f'com.{owner}.vpm',
-                  'url': pages_url,
-                  'author': owner,
-                  'packages': {}
-              }
-
-          repository.setdefault('name', f'{owner} VPM Repository')
-          repository.setdefault('id', f'com.{owner}.vpm')
-          repository.setdefault('url', pages_url)
-          repository.setdefault('author', owner)
-          repository.setdefault('packages', {})
-
-          package_entry = repository['packages'].setdefault(pkg['name'], {'versions': {}})
-          package_entry.setdefault('versions', {})
-
-          release_pkg = dict(pkg)
-          release_pkg['url'] = asset_url
-          package_entry['versions'][pkg['version']] = release_pkg
-
-          os.makedirs('public', exist_ok=True)
-          with open('public/index.json', 'w', encoding='utf-8') as f:
-              json.dump(repository, f, indent=2, ensure_ascii=False)
-
-          shutil.copy('index.html', 'public/index.html')
           PY
 
       - name: Configure GitHub Pages
