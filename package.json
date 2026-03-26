@@ -1,6 +1,6 @@
 {
   "name": "com.rimelate.justtimeshader",
-  "version": "0.2.0",
+  "version": "2.1.0",
   "displayName": "JustTimeShader",
   "description": "VRChat向け ローカル時間表示シェーダー",
   "unity": "2022.3",
