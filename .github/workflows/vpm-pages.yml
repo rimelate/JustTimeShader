@@ -36,6 +36,91 @@ jobs:
           python3 <<'PY'
           import json
           import os
+          import re
+          import shutil
+          import urllib.error
+          import urllib.request
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          owner, repo_name = repo.split('/')
+          token = os.environ.get('GITHUB_TOKEN', '')
+
+          def github_api(url: str):
+              req = urllib.request.Request(url)
+              if token:
+                  req.add_header('Authorization', f'Bearer {token}')
+              req.add_header('Accept', 'application/vnd.github+json')
+              req.add_header('X-GitHub-Api-Version', '2022-11-28')
+              with urllib.request.urlopen(req) as resp:
+                  return json.load(resp)
+
+          release_data = github_api(f'https://api.github.com/repos/{repo}/releases/latest')
+          tag = release_data['tag_name']
+
+          with open('package.json', 'r', encoding='utf-8') as f:
+              pkg = json.load(f)
+
+          tag_version = tag[1:] if tag.startswith('v') else tag
+          if pkg['version'] != tag_version:
+              raise SystemExit(
+                  f"package.json version ({pkg['version']}) does not match release tag ({tag}). "
+                  f"Set package.json to '{tag_version}' or publish a matching tag."
+              )
+
+          if not re.fullmatch(r'\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?', pkg['version']):
+              raise SystemExit(
+                  f"package.json version '{pkg['version']}' is not SemVer. Use a value like 2.1.0."
+              )
+
+          pages_url = f'https://{owner}.github.io/{repo_name}/index.json'
+          asset_name = f"{pkg['name'].replace('.', '-')}-{tag}.zip"
+          asset_url = f'https://github.com/{repo}/releases/download/{tag}/{asset_name}'
+
+          try:
+              with urllib.request.urlopen(pages_url) as resp:
+                  repository = json.load(resp)
+          except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError):
+              repository = {
+                  'name': f'{owner} VPM Repository',
+                  'id': f'com.{owner}.vpm',
+                  'url': pages_url,
+                  'author': owner,
+                  'packages': {}
+              }
+
+          repository['name'] = repository.get('name') or f'{owner} VPM Repository'
+          repository['id'] = repository.get('id') or f'com.{owner}.vpm'
+          repository['url'] = pages_url
+          repository['author'] = repository.get('author') or owner
+          repository.setdefault('packages', {})
+
+          package_entry = repository['packages'].setdefault(pkg['name'], {'versions': {}})
+          package_entry.setdefault('versions', {})
+
+          release_pkg = dict(pkg)
+          release_pkg['url'] = asset_url
+          package_entry['versions'][pkg['version']] = release_pkg
+
+          os.makedirs('public', exist_ok=True)
+          with open('public/index.json', 'w', encoding='utf-8') as f:
+              json.dump(repository, f, indent=2, ensure_ascii=False)
+
+          if os.path.isfile('index.html'):
+              shutil.copy('index.html', 'public/index.html')
+          PY
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./public
+
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4          import json
+          import os
           import shutil
           import urllib.error
           import urllib.request
